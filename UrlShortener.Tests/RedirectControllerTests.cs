@@ -42,4 +42,24 @@ public class TestShortUrlService : IShortUrlService
     {
         return [];
     }
+
+    public Task<List<UrlDto>> GetUrls(int managerId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<UrlDto?> GetSingleUrl(int urlId, int managerId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> DeleteUrl(int id, int managerId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<UrlDto?> ChangeUrl(int id, ChangeUrlModel model, int managerId)
+    {
+        throw new NotImplementedException();
+    }
 }

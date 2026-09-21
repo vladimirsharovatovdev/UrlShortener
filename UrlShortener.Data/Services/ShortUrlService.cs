@@ -147,6 +147,11 @@ public interface IShortUrlService
 {
     Task<string?> GetLongUrl(string shortUrl);
     Task<List<UrlDto>> CreateUrl(List<CreateUrlModel> models, int managerId);
+    Task<List<UrlDto>> GetUrls(int managerId);
+    Task<UrlDto?> GetSingleUrl(int urlId, int managerId);
+    Task<bool> DeleteUrl(int id, int managerId);
+    Task<UrlDto?> ChangeUrl(int id, ChangeUrlModel model, int managerId);
+
 }
 
 public enum ResponseStatus

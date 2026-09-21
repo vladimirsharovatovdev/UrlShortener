@@ -78,32 +78,6 @@ const JwtAuth = (function () {
         window.location.href = redirectUrl;
     }
 
-    // ---- Authenticated fetch wrapper ----
-
-    async function authFetch(url, options = {}) {
-        const token = getToken();
-
-        if (!token || isTokenExpired(token)) {
-            clearToken();
-            window.location.href = "/Auth/Login";
-            return Promise.reject(new Error("No valid token, redirecting to login"));
-        }
-
-        const headers = {
-            ...(options.headers || {}),
-            "Authorization": `Bearer ${token}`
-        };
-
-        const response = await fetch(url, { ...options, headers });
-
-        if (response.status === 401) {
-            clearToken();
-            window.location.href = "/Auth/Login";
-        }
-
-        return response;
-    }
-
     function getUserName() {
         const token = getToken();
         if (!token || isTokenExpired(token)) return null;
@@ -130,7 +104,6 @@ const JwtAuth = (function () {
         isTokenExpired,
         login,
         logout,
-        authFetch,
         getUserName
     };
 })();

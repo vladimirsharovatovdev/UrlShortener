@@ -1,139 +1,226 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0c0f">
+    <title>Link — UrlShortener</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233ee6b0'/%3E%3Cpath d='M13 19l6-6M14.5 11.5l1.2-1.2a3.5 3.5 0 015 5l-1.2 1.2M17.5 20.5l-1.2 1.2a3.5 3.5 0 01-5-5l1.2-1.2' stroke='%2304211a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/style.css">
     <script src="/main.js"></script>
+    <script src="/ui.js"></script>
 </head>
-<body>
-<form>
-    <div>
-        <label for="input-short-url">Short Url: </label>
-        <input id="input-short-url"/>
+<body data-page="edit">
+<header id="nav"></header>
+
+<main class="container narrow page">
+    <a class="back" href="/short-urls.html"><span data-icon="arrowLeft"></span> All links</a>
+
+    <div class="card card-pad">
+        <div class="page-head" style="margin-bottom:22px">
+            <div>
+                <h1 id="page-title">Create link</h1>
+                <p id="page-subtitle">Paste the destination and, optionally, pick a short code.</p>
+            </div>
+        </div>
+
+        <!-- Edit mode: current short link + clicks -->
+        <div id="summary" class="link-summary" hidden>
+            <div class="result-body">
+                <div class="result-label">Short link</div>
+                <a id="summary-link" class="result-link" target="_blank" rel="noopener"></a>
+            </div>
+            <div class="result-actions">
+                <button id="summary-copy" class="icon-btn" type="button" title="Copy short link" aria-label="Copy short link"></button>
+                <a id="summary-open" class="icon-btn" target="_blank" rel="noopener" title="Open short link" aria-label="Open short link">
+                    <span data-icon="external"></span>
+                </a>
+            </div>
+            <div class="clicks-box">
+                <div class="n" id="redirect-count">0</div>
+                <div class="l">clicks</div>
+            </div>
+        </div>
+
+        <form id="url-form" novalidate>
+            <div class="field">
+                <label class="label" for="input-long-url">Destination URL</label>
+                <input id="input-long-url" class="input" type="url" inputmode="url" autocomplete="off"
+                       spellcheck="false" placeholder="https://example.com/a/very/long/link" required>
+            </div>
+
+            <div class="field">
+                <label class="label" for="input-short-url">Short code <span class="opt">optional</span></label>
+                <div class="input-group">
+                    <span class="input-addon" id="short-prefix"></span>
+                    <input id="input-short-url" class="input mono" autocomplete="off" spellcheck="false"
+                           autocapitalize="none" maxlength="64" placeholder="auto-generated">
+                </div>
+                <div class="hint" id="short-hint">Letters, numbers, “-” and “_”. Leave empty and we'll generate one.</div>
+            </div>
+
+            <div class="form-actions">
+                <button id="save-button" class="btn btn-primary" type="submit">Create link</button>
+                <a class="btn btn-ghost" href="/short-urls.html">Cancel</a>
+            </div>
+        </form>
     </div>
 
-    <div>
-        <label for="input-long-url">Long Url: </label>
-        <input id="input-long-url"/>
+    <!-- Edit mode: danger zone -->
+    <div id="danger-zone" class="danger-zone" hidden>
+        <div>
+            <h3>Delete this link</h3>
+            <p>The short link will stop working immediately. This can't be undone.</p>
+        </div>
+        <button id="delete-url-button" class="btn btn-danger" type="button">
+            <span data-icon="trash"></span> Delete
+        </button>
     </div>
-
-    <div id="redirect-count-block" style="display: none;">
-        Redirect Count:
-        <span id="redirect-count"></span>
-    </div>
-    
-    <div id="edit-url-buttons" style="display: none">
-        <button id="change-url-button" type="button">Change</button>
-        <button id="delete-url-button" type="button">Delete</button>
-    </div>
-    
-    <div id="create-url-buttons" style="display: none">
-        <button id="create-url-button" type="button">Create</button>
-    </div>
-</form>
+</main>
 
 <script>
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    const redirectCount = document.getElementById("redirect-count");
-    const redirectCountBlock = document.getElementById("redirect-count-block");
-    const inputShortUrl = document.getElementById("input-short-url");
-    const inputLongUrl = document.getElementById("input-long-url");
-    const createUrlButtons = document.getElementById("create-url-buttons");
-    const editUrlButtons = document.getElementById("edit-url-buttons");
-    const changeUrlButton = document.getElementById("change-url-button");
-    const deleteUrlButton = document.getElementById("delete-url-button");
-    const createUrlButton = document.getElementById("create-url-button");
-    
-    if(id == null)
-    {
-        createUrlButtons.style.display = "block";
+    if (UI.requireAuth()) {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get("id");
+        const isEdit = id !== null;
 
-        createUrlButton.addEventListener("click", async () => {
+        const form = document.getElementById("url-form");
+        const inputShortUrl = document.getElementById("input-short-url");
+        const inputLongUrl = document.getElementById("input-long-url");
+        const saveButton = document.getElementById("save-button");
+        const deleteButton = document.getElementById("delete-url-button");
+        const summary = document.getElementById("summary");
+        const summaryLink = document.getElementById("summary-link");
+        const summaryCopy = document.getElementById("summary-copy");
+        const summaryOpen = document.getElementById("summary-open");
 
-            const ShortUrl = inputShortUrl.value;
-            const LongUrl = inputLongUrl.value;
+        document.getElementById("short-prefix").textContent = UI.shortLinkPrefix();
+        summaryCopy.innerHTML = UI.icon("copy");
 
-            const response = await fetch("/short-urls", {
-                method: "POST",
-                headers: { "Content-Type": "application/json",
-                    "Authorization": "Bearer " + JwtAuth.getToken()},
-                body: JSON.stringify({ ShortUrl, LongUrl })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Create url failed");
-            }
-
-            window.location.href = "/short-urls.html";
-        });
-    }
-    else
-    {
-        editUrlButtons.style.display = "block";
-        redirectCountBlock.style.display = "block";
-        async function loadData() {
-
-            const response = await fetch("/short-urls/" + id, {
-                method: "GET",
-                headers: { "Content-Type": "application/json",
-                    "Authorization": "Bearer " + JwtAuth.getToken()}
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Loading data failed");
-            }
-            const url = await response.json();
-
-            inputShortUrl.value = url.shortUrl;
-            inputLongUrl.value = url.longUrl;
-            redirectCount.textContent = url.redirectCount;
+        function setSummary(code, clicks) {
+            const link = UI.shortLink(code);
+            summaryLink.textContent = link.replace(/^https?:\/\//, "");
+            summaryLink.href = link;
+            summaryOpen.href = link;
+            summaryCopy.onclick = () => UI.copy(link, summaryCopy);
+            document.getElementById("redirect-count").textContent = Number(clicks || 0).toLocaleString("en-US");
         }
-        loadData();
 
-        changeUrlButton.addEventListener("click", async () => {
+        function validate() {
+            const longUrl = inputLongUrl.value.trim();
+            const shortUrl = inputShortUrl.value.trim();
 
-            const newShortUrl = inputShortUrl.value;
-            const newLongUrl = inputLongUrl.value;
+            if (!/^https?:\/\/\S+$/i.test(longUrl)) {
+                inputLongUrl.classList.add("invalid");
+                inputLongUrl.focus();
+                UI.toast("Enter a full destination URL starting with http:// or https://", "error");
+                return null;
+            }
+            if (shortUrl && !/^[A-Za-z0-9_-]+$/.test(shortUrl)) {
+                inputShortUrl.closest(".input-group").classList.add("invalid");
+                inputShortUrl.focus();
+                UI.toast("The short code can only contain letters, numbers, “-” and “_”.", "error");
+                return null;
+            }
+            return { longUrl, shortUrl };
+        }
 
-            const response = await fetch("/short-urls/" + id, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json",
-                    "Authorization": "Bearer " + JwtAuth.getToken()},
-                body: JSON.stringify({ newShortUrl, newLongUrl })
+        inputLongUrl.addEventListener("input", () => inputLongUrl.classList.remove("invalid"));
+        inputShortUrl.addEventListener("input", () => inputShortUrl.closest(".input-group").classList.remove("invalid"));
+
+        if (!isEdit) {
+            // ---- Create ----
+            inputLongUrl.focus();
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const values = validate();
+                if (!values) return;
+
+                try {
+                    await UI.busy(saveButton, async () => {
+                        await UI.api("/short-urls", {
+                            method: "POST",
+                            body: { ShortUrl: values.shortUrl, LongUrl: values.longUrl }
+                        });
+                        UI.flash("Link created.", "success");
+                        window.location.href = "/short-urls.html";
+                    });
+                } catch (err) {
+                    UI.fail(err, { 400: "Couldn't create the link. That short code may already be taken." });
+                }
+            });
+        } else {
+            // ---- Edit ----
+            document.title = "Edit link — UrlShortener";
+            document.getElementById("page-title").textContent = "Edit link";
+            document.getElementById("page-subtitle").textContent = "Change where this short link points, or rename its code.";
+            document.getElementById("short-hint").textContent =
+                "Letters, numbers, “-” and “_”. Leave empty to generate a new code automatically.";
+            saveButton.textContent = "Save changes";
+            summary.hidden = false;
+            document.getElementById("danger-zone").hidden = false;
+
+            async function loadData() {
+                try {
+                    const response = await UI.api("/short-urls/" + encodeURIComponent(id));
+                    const url = await response.json();
+                    inputShortUrl.value = url.shortUrl;
+                    inputLongUrl.value = url.longUrl;
+                    setSummary(url.shortUrl, url.redirectCount);
+                } catch (err) {
+                    UI.fail(err, { 404: "That link doesn't exist or isn't yours." });
+                    if (err.status === 404) {
+                        setTimeout(() => window.location.href = "/short-urls.html", 1200);
+                    }
+                }
+            }
+            loadData();
+
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const values = validate();
+                if (!values) return;
+
+                try {
+                    await UI.busy(saveButton, async () => {
+                        await UI.api("/short-urls/" + encodeURIComponent(id), {
+                            method: "PUT",
+                            body: { newShortUrl: values.shortUrl, newLongUrl: values.longUrl }
+                        });
+                        UI.flash("Changes saved.", "success");
+                        window.location.href = "/short-urls.html";
+                    });
+                } catch (err) {
+                    UI.fail(err, {
+                        400: "Couldn't save the changes. That short code may already be taken.",
+                        404: "That link no longer exists."
+                    });
+                }
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Change url failed");
-            }
+            deleteButton.addEventListener("click", async () => {
+                const ok = await UI.confirm({
+                    title: "Delete this link?",
+                    message: "The short link will stop working immediately. This can't be undone.",
+                    confirmText: "Delete link",
+                    danger: true
+                });
+                if (!ok) return;
 
-            window.location.href = "/short-urls.html";
-        });
-
-        deleteUrlButton.addEventListener("click", async () => {
-
-            const response = await fetch("/short-urls/" + id, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json",
-                    "Authorization": "Bearer " + JwtAuth.getToken()}
+                try {
+                    await UI.busy(deleteButton, async () => {
+                        await UI.api("/short-urls/" + encodeURIComponent(id), { method: "DELETE" });
+                        UI.flash("Link deleted.", "success");
+                        window.location.href = "/short-urls.html";
+                    });
+                } catch (err) {
+                    UI.fail(err, { 404: "That link no longer exists." });
+                }
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Delete url failed");
-            }
-
-            inputShortUrl.value = "";
-            inputLongUrl.value = "";
-
-            window.location.href = "/short-urls.html";
-        });
+        }
     }
-    
-    
 </script>
-
 </body>
 </html>

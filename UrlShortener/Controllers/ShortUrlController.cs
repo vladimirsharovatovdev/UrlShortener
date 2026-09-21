@@ -11,9 +11,9 @@ namespace UrlShortener.Controllers
     public class ShortUrlController : ControllerBase
     {
         private readonly CurrentUserService _currentUserService;
-        private readonly ShortUrlService _shortUrlService;
+        private readonly IShortUrlService _shortUrlService;
 
-        public ShortUrlController(CurrentUserService currentUserService, ShortUrlService shortUrlService)
+        public ShortUrlController(CurrentUserService currentUserService, IShortUrlService shortUrlService)
         {
             _currentUserService = currentUserService;
             _shortUrlService = shortUrlService;

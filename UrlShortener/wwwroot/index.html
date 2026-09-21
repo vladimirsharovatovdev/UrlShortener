@@ -1,42 +1,162 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Url Shortener</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0c0f">
+    <title>UrlShortener — short links, big clarity</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233ee6b0'/%3E%3Cpath d='M13 19l6-6M14.5 11.5l1.2-1.2a3.5 3.5 0 015 5l-1.2 1.2M17.5 20.5l-1.2 1.2a3.5 3.5 0 01-5-5l1.2-1.2' stroke='%2304211a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/style.css">
     <script src="/main.js"></script>
+    <script src="/ui.js"></script>
 </head>
-<body>
-<p>Yo dude, this is url shortener. You can decrease size of your url.</p>
-<br/>
-<div id="logged-section" style="display: none">
-    <a href="short-urls.html">Urls List</a>
-    <a id="logout-button" href="#">Logout</a>
-    <div id="logged-greet"></div>
-</div>
-<div id="unlogged-section" style="display: none">
-    <a href="login.html">Login</a>
-    <a href="register.html">Register</a>
-</div>
+<body data-page="home">
+<header id="nav"></header>
+
+<main>
+    <section class="container hero">
+        <span class="eyebrow"><span class="dot"></span>short links, zero fuss</span>
+        <h1>Make long URLs <em>short</em>.<br>Track every click.</h1>
+        <p class="lead">
+            Paste a long link, get a short one you can share anywhere.
+            Pick your own code or let us generate one, then edit or delete it whenever you like.
+        </p>
+
+        <!-- Guests -->
+        <div id="guest-actions" class="hero-actions" hidden>
+            <a class="btn btn-primary btn-lg" href="/register.html">Get started <span data-icon="arrowRight"></span></a>
+            <a class="btn btn-lg" href="/login.html">Sign in</a>
+        </div>
+
+        <!-- Signed-in users -->
+        <div id="user-area" hidden>
+            <form id="shorten-form" class="shorten" novalidate>
+                <span class="input-lead"><span data-icon="link"></span></span>
+                <input id="input-long-url" class="input" type="url" inputmode="url" autocomplete="off"
+                       placeholder="Paste a long URL, e.g. https://example.com/very/long/path"
+                       aria-label="Long URL" required>
+                <button id="shorten-button" class="btn btn-primary btn-lg" type="submit">Shorten</button>
+            </form>
+
+            <div id="result" class="result" hidden>
+                <span class="ico" style="color:var(--accent)" data-icon="checkCircle"></span>
+                <div class="result-body">
+                    <div class="result-label">Your short link</div>
+                    <a id="result-link" class="result-link" target="_blank" rel="noopener"></a>
+                </div>
+                <div class="result-actions">
+                    <button id="result-copy" class="btn btn-primary btn-sm" type="button">
+                        <span data-icon="copy"></span> Copy
+                    </button>
+                    <a id="result-edit" class="btn btn-sm" href="/short-urls.html">
+                        <span data-icon="link"></span> My links
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container section">
+        <div class="features">
+            <div class="card feature">
+                <div class="ico-box"><span data-icon="hash"></span></div>
+                <h3>Custom short codes</h3>
+                <p>Choose something memorable like <span class="mono">/r/summer</span>, or leave it blank and we'll generate a code for you.</p>
+            </div>
+            <div class="card feature">
+                <div class="ico-box"><span data-icon="click"></span></div>
+                <h3>Click counter</h3>
+                <p>See how many times each link has been opened, right next to the link in your dashboard.</p>
+            </div>
+            <div class="card feature">
+                <div class="ico-box"><span data-icon="zap"></span></div>
+                <h3>Instant redirects</h3>
+                <p>Anyone with a short link is sent straight to the destination. No account needed to follow a link.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="container">
+        <div class="card jump">
+            <div class="jump-text">
+                <h3>Got a short code?</h3>
+                <p>Enter it below and we'll take you to the destination.</p>
+            </div>
+            <form id="jump-form">
+                <div class="input-group" style="flex:1">
+                    <span class="input-addon" id="jump-prefix"></span>
+                    <input id="jump-code" class="input mono" autocomplete="off" spellcheck="false"
+                           placeholder="code" aria-label="Short code" required>
+                </div>
+                <button class="btn" type="submit">Open <span data-icon="arrowRight"></span></button>
+            </form>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container">
+        <span>UrlShortener</span>
+        <span class="mono">/r/&lt;code&gt; &rarr; destination</span>
+    </div>
+</footer>
 
 <script>
-    function refresh() {
-        if (JwtAuth.isAuthenticated()) {
-            document.getElementById("logged-section").style.display = "block";
-            document.getElementById("unlogged-section").style.display = "none";
+    const guestActions = document.getElementById("guest-actions");
+    const userArea = document.getElementById("user-area");
+    const shortenForm = document.getElementById("shorten-form");
+    const shortenButton = document.getElementById("shorten-button");
+    const inputLongUrl = document.getElementById("input-long-url");
+    const result = document.getElementById("result");
+    const resultLink = document.getElementById("result-link");
+    const resultCopy = document.getElementById("result-copy");
 
-            document.getElementById("logged-greet").textContent = "Hi " + JwtAuth.getUserName();
-        } else {
-            document.getElementById("logged-section").style.display = "none";
-            document.getElementById("unlogged-section").style.display = "block";
+    const authed = JwtAuth.isAuthenticated();
+    guestActions.hidden = authed;
+    userArea.hidden = !authed;
+
+    shortenForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const longUrl = inputLongUrl.value.trim();
+
+        if (!/^https?:\/\/\S+$/i.test(longUrl)) {
+            inputLongUrl.classList.add("invalid");
+            inputLongUrl.focus();
+            UI.toast("Please enter a full URL starting with http:// or https://", "error");
+            return;
         }
-    }
+        inputLongUrl.classList.remove("invalid");
 
-    document.getElementById("logout-button").addEventListener("click", async () => {
-        JwtAuth.logout();
-        refresh();
+        try {
+            await UI.busy(shortenButton, async () => {
+                const response = await UI.api("/short-urls", {
+                    method: "POST",
+                    body: { LongUrl: longUrl, ShortUrl: "" }
+                });
+                const created = await response.json();
+                const link = UI.shortLink(created.shortUrl);
+
+                resultLink.textContent = link.replace(/^https?:\/\//, "");
+                resultLink.href = link;
+                resultCopy.onclick = () => UI.copy(link, resultCopy);
+                result.hidden = false;
+                inputLongUrl.value = "";
+            });
+        } catch (err) {
+            UI.fail(err, { 400: "Couldn't create the link. Please check the URL and try again." });
+        }
     });
 
-    refresh();
+    inputLongUrl.addEventListener("input", () => inputLongUrl.classList.remove("invalid"));
+
+    // Public: jump to a short link
+    document.getElementById("jump-prefix").textContent = UI.shortLinkPrefix();
+    document.getElementById("jump-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const code = document.getElementById("jump-code").value.trim().replace(/^\/?r\//, "");
+        if (code) window.location.href = "/r/" + encodeURIComponent(code);
+    });
 </script>
 </body>
 </html>

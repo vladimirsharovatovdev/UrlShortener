@@ -1,62 +1,166 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Url Shortener - short urls</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0c0f">
+    <title>My links — UrlShortener</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233ee6b0'/%3E%3Cpath d='M13 19l6-6M14.5 11.5l1.2-1.2a3.5 3.5 0 015 5l-1.2 1.2M17.5 20.5l-1.2 1.2a3.5 3.5 0 01-5-5l1.2-1.2' stroke='%2304211a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/style.css">
     <script src="/main.js"></script>
+    <script src="/ui.js"></script>
 </head>
-<body>
-<div>
-    <button id="create-url-button">Create New</button>
-</div>
-<div id="short-urls-list">
-    
-</div>
-<div id="short-url-template" style="display: none">
-    <div class="short-url-item">
-        <a class="short-url-edit">
-            Short Url:
-            <span class="short-url"></span>
-            Long Url:
-            <span class="long-url"></span>
-            Redirect Count:
-            <span class="redirect-count"></span>
-        </a>
+<body data-page="list">
+<header id="nav"></header>
+
+<main class="container page">
+    <div class="page-head">
+        <div>
+            <h1>My links</h1>
+            <p>Every short link you've created, in one place.</p>
+        </div>
+        <button id="create-url-button" class="btn btn-primary" type="button">
+            <span data-icon="plus"></span> Create new
+        </button>
     </div>
-</div>
+
+    <div class="stats" id="stats" hidden>
+        <div class="card stat">
+            <div class="stat-label">Links</div>
+            <div class="stat-value" id="stat-links">0</div>
+        </div>
+        <div class="card stat">
+            <div class="stat-label">Total clicks</div>
+            <div class="stat-value" id="stat-clicks">0</div>
+        </div>
+    </div>
+
+    <div class="toolbar" id="toolbar" hidden>
+        <label class="search">
+            <span data-icon="search"></span>
+            <input id="search" class="input" type="search" placeholder="Search by short code or destination…"
+                   autocomplete="off" aria-label="Search links">
+        </label>
+    </div>
+
+    <div class="list" id="list-card">
+        <div class="list-head" aria-hidden="true">
+            <div>Short link</div>
+            <div>Destination</div>
+            <div class="r">Clicks</div>
+            <div></div>
+        </div>
+        <div id="short-urls-list">
+            <!-- skeleton rows, replaced once data loads -->
+            <div class="row" aria-hidden="true"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:85%"></span><span class="skeleton"></span><span></span></div>
+            <div class="row" aria-hidden="true"><span class="skeleton" style="width:45%"></span><span class="skeleton" style="width:70%"></span><span class="skeleton"></span><span></span></div>
+            <div class="row" aria-hidden="true"><span class="skeleton" style="width:55%"></span><span class="skeleton" style="width:78%"></span><span class="skeleton"></span><span></span></div>
+        </div>
+    </div>
+</main>
 
 <script>
-    const createUrlButton = document.getElementById("create-url-btn");
-    async function loadData() {
-        const response = await fetch("/short-urls", {
-            method: "GET",
-            headers: { "Content-Type": "application/json",
-            "Authorization": "Bearer " + JwtAuth.getToken()}
+    if (UI.requireAuth()) {
+        let allUrls = [];
+        const listCard = document.getElementById("list-card");
+        const list = document.getElementById("short-urls-list");
+        const search = document.getElementById("search");
+
+        function fmt(n) { return Number(n || 0).toLocaleString("en-US"); }
+
+        function makeRow(url) {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML =
+                '<div class="cell short">' +
+                    '<a class="row-link short-code"><span class="dim">/r/</span><span class="code"></span></a>' +
+                    '<button type="button" class="icon-btn copy-btn" title="Copy short link" aria-label="Copy short link">' + UI.icon("copy") + '</button>' +
+                '</div>' +
+                '<div class="cell long"></div>' +
+                '<div class="cell clicks"><span class="badge" title="Redirect count">' + UI.icon("click") + '<span class="n"></span></span></div>' +
+                '<div class="cell go">' + UI.icon("chevronRight") + '</div>';
+
+            row.querySelector(".row-link").href = "/short-url.html?id=" + encodeURIComponent(url.id);
+            row.querySelector(".code").textContent = url.shortUrl;
+            const long = row.querySelector(".long");
+            long.textContent = url.longUrl;
+            long.title = url.longUrl;
+            row.querySelector(".n").textContent = fmt(url.redirectCount);
+
+            const copyBtn = row.querySelector(".copy-btn");
+            copyBtn.addEventListener("click", () => UI.copy(UI.shortLink(url.shortUrl), copyBtn));
+            return row;
+        }
+
+        function renderEmpty(filtered) {
+            const box = document.createElement("div");
+            box.className = "empty";
+            if (filtered) {
+                box.innerHTML =
+                    '<div class="ico-box">' + UI.icon("search") + '</div>' +
+                    '<h3>No matches</h3><p>No link matches your search. Try a different word.</p>';
+            } else {
+                box.innerHTML =
+                    '<div class="ico-box">' + UI.icon("link") + '</div>' +
+                    '<h3>No links yet</h3><p>Create your first short link and it will show up here.</p>' +
+                    '<a class="btn btn-primary" href="/short-url.html">' + UI.icon("plus") + ' Create a link</a>';
+            }
+            return box;
+        }
+
+        function render() {
+            const q = search.value.trim().toLowerCase();
+            const items = q
+                ? allUrls.filter(u => (u.shortUrl || "").toLowerCase().includes(q) || (u.longUrl || "").toLowerCase().includes(q))
+                : allUrls;
+
+            list.replaceChildren();
+            if (items.length === 0) {
+                listCard.querySelector(".list-head").hidden = true;
+                list.appendChild(renderEmpty(allUrls.length > 0));
+                return;
+            }
+            listCard.querySelector(".list-head").hidden = false;
+            // Newest first
+            for (const url of [...items].sort((a, b) => b.id - a.id)) {
+                list.appendChild(makeRow(url));
+            }
+            list.firstElementChild.style.borderTop = "0";
+        }
+
+        async function loadData() {
+            try {
+                const response = await UI.api("/short-urls");
+                allUrls = await response.json();
+
+                document.getElementById("stat-links").textContent = fmt(allUrls.length);
+                document.getElementById("stat-clicks").textContent = fmt(allUrls.reduce((s, u) => s + (u.redirectCount || 0), 0));
+                document.getElementById("stats").hidden = allUrls.length === 0;
+                document.getElementById("toolbar").hidden = allUrls.length === 0;
+                render();
+            } catch (err) {
+                UI.fail(err, { 404: "Couldn't load your links." });
+                list.replaceChildren();
+                listCard.querySelector(".list-head").hidden = true;
+                const box = document.createElement("div");
+                box.className = "empty";
+                box.innerHTML =
+                    '<div class="ico-box">' + UI.icon("alert") + '</div>' +
+                    '<h3>Couldn\'t load your links</h3><p>Something went wrong while fetching your links.</p>' +
+                    '<button class="btn" type="button" id="retry">Try again</button>';
+                list.appendChild(box);
+                box.querySelector("#retry").addEventListener("click", () => location.reload());
+            }
+        }
+
+        search.addEventListener("input", render);
+        document.getElementById("create-url-button").addEventListener("click", () => {
+            window.location.href = "/short-url.html";
         });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Loading data failed");
-        }
-        const urls = await response.json();
 
-        const template = document.getElementById("short-url-template").innerHTML;
-        const shortUrlsList = document.getElementById("short-urls-list");
-        for (const url of urls) {
-            shortUrlsList.insertAdjacentHTML("beforeend", template);
-            const shortUrlItem = shortUrlsList.querySelector('.short-url-item:last-child');
-            const shortUrlEdit = shortUrlItem.querySelector('.short-url-edit');
-            shortUrlEdit.href = "/short-url.html?id=" + url.id;
-            shortUrlItem.querySelector('.short-url').textContent = url.shortUrl;
-            shortUrlItem.querySelector('.long-url').textContent = url.longUrl;
-            shortUrlItem.querySelector('.redirect-count').textContent = url.redirectCount;
-        }
+        loadData();
     }
-
-    document.getElementById("create-url-button").addEventListener("click", async () => {
-        window.location.href = "/short-url.html";
-    });
-    
-    loadData();
 </script>
 </body>
 </html>

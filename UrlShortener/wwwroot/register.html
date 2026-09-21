@@ -1,48 +1,90 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Url Shortener - Register</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0a0c0f">
+    <title>Create account — UrlShortener</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233ee6b0'/%3E%3Cpath d='M13 19l6-6M14.5 11.5l1.2-1.2a3.5 3.5 0 015 5l-1.2 1.2M17.5 20.5l-1.2 1.2a3.5 3.5 0 01-5-5l1.2-1.2' stroke='%2304211a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/style.css">
     <script src="/main.js"></script>
+    <script src="/ui.js"></script>
 </head>
-<body>
-<h2>Register</h2>
+<body data-page="register">
+<header id="nav"></header>
 
-<form>
-    <div>
-        <label for="input-name">Name: </label>
-        <input id="input-name" />
+<main class="auth-wrap">
+    <div class="card auth-card">
+        <div class="auth-head">
+            <div class="brand-mark"><span data-icon="link"></span></div>
+            <h1>Create your account</h1>
+            <p>Start shortening links in seconds.</p>
+        </div>
+
+        <form id="register-form" novalidate>
+            <div class="field">
+                <label class="label" for="input-name">Name</label>
+                <input id="input-name" class="input" autocomplete="username" autocapitalize="none"
+                       spellcheck="false" placeholder="Choose a name" required autofocus>
+            </div>
+
+            <div class="field">
+                <label class="label" for="input-password">Password</label>
+                <div class="input-group">
+                    <input id="input-password" class="input" type="password"
+                           autocomplete="new-password" placeholder="Choose a password" required>
+                    <button type="button" class="icon-btn" data-toggle-password="input-password"
+                            aria-label="Show password"></button>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button id="register-button" class="btn btn-primary btn-lg btn-block" type="submit">Create account</button>
+            </div>
+        </form>
+
+        <p class="auth-foot">Already have an account? <a href="/login.html">Sign in</a></p>
     </div>
-
-    <div>
-        <label for="input-password">Password: </label>
-        <input id="input-password" type="password"/>
-    </div>
-
-    <button id="register-button" type="button">Register</button>
-</form>
+</main>
 
 <script>
     if (JwtAuth.isAuthenticated()) {
-        window.location.href = "/";
+        window.location.replace("/");
     }
 
-    document.getElementById("register-button").addEventListener("click", async () => {
-        const name = document.getElementById("input-name").value;
-        const password = document.getElementById("input-password").value;
+    const form = document.getElementById("register-form");
+    const inputName = document.getElementById("input-name");
+    const inputPassword = document.getElementById("input-password");
+    const registerButton = document.getElementById("register-button");
 
-        const response = await fetch("/managers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, password })
-        });
+    inputName.addEventListener("input", () => inputName.classList.remove("invalid"));
+    inputPassword.addEventListener("input", () => inputPassword.closest(".input-group").classList.remove("invalid"));
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || "Registration failed");
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = inputName.value.trim();
+        const password = inputPassword.value;
+
+        if (!name || !password) {
+            if (!name) inputName.classList.add("invalid");
+            if (!password) inputPassword.closest(".input-group").classList.add("invalid");
+            (!name ? inputName : inputPassword).focus();
+            UI.toast("Enter a name and a password.", "error");
+            return;
         }
 
-        window.location.href = "/login.html";
+        try {
+            await UI.busy(registerButton, () => UI.api("/managers", {
+                method: "POST",
+                auth: false,
+                body: { name, password }
+            }));
+            UI.flash("Account created. Sign in to continue.", "success");
+            window.location.href = "/login.html";
+        } catch (err) {
+            UI.fail(err, { 400: "Couldn't create the account. That name may already be taken." });
+        }
     });
 </script>
 </body>
