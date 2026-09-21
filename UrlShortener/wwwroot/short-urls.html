@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Url Shortener - short urls</title>
+    <script src="/main.js"></script>
+</head>
+<body>
+<div>
+    <button id="create-url-button">Create New</button>
+</div>
+<div id="short-urls-list">
+    
+</div>
+<div id="short-url-template" style="display: none">
+    <div class="short-url-item">
+        <a class="short-url-edit">
+            Short Url:
+            <span class="short-url"></span>
+            Long Url:
+            <span class="long-url"></span>
+            Redirect Count:
+            <span class="redirect-count"></span>
+        </a>
+    </div>
+</div>
+
+<script>
+    const createUrlButton = document.getElementById("create-url-btn");
+    async function loadData() {
+        const response = await fetch("/short-urls", {
+            method: "GET",
+            headers: { "Content-Type": "application/json",
+            "Authorization": "Bearer " + JwtAuth.getToken()}
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Loading data failed");
+        }
+        const urls = await response.json();
+
+        const template = document.getElementById("short-url-template").innerHTML;
+        const shortUrlsList = document.getElementById("short-urls-list");
+        for (const url of urls) {
+            shortUrlsList.insertAdjacentHTML("beforeend", template);
+            const shortUrlItem = shortUrlsList.querySelector('.short-url-item:last-child');
+            const shortUrlEdit = shortUrlItem.querySelector('.short-url-edit');
+            shortUrlEdit.href = "/short-url.html?id=" + url.id;
+            shortUrlItem.querySelector('.short-url').textContent = url.shortUrl;
+            shortUrlItem.querySelector('.long-url').textContent = url.longUrl;
+            shortUrlItem.querySelector('.redirect-count').textContent = url.redirectCount;
+        }
+    }
+
+    document.getElementById("create-url-button").addEventListener("click", async () => {
+        window.location.href = "/short-url.html";
+    });
+    
+    loadData();
+</script>
+</body>
+</html>

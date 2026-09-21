@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="UrlShortener.Data/UrlShortener.Data.csproj" />
+  <Project Path="UrlShortener.DbPopulator/UrlShortener.DbPopulator.csproj" />
+  <Project Path="UrlShortener.Tests/UrlShortener.Tests.csproj" />
+  <Project Path="UrlShortener/UrlShortener.csproj" />
+</Solution>

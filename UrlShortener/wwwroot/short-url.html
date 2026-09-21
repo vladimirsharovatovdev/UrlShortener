@@ -1,0 +1,139 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/main.js"></script>
+</head>
+<body>
+<form>
+    <div>
+        <label for="input-short-url">Short Url: </label>
+        <input id="input-short-url"/>
+    </div>
+
+    <div>
+        <label for="input-long-url">Long Url: </label>
+        <input id="input-long-url"/>
+    </div>
+
+    <div id="redirect-count-block" style="display: none;">
+        Redirect Count:
+        <span id="redirect-count"></span>
+    </div>
+    
+    <div id="edit-url-buttons" style="display: none">
+        <button id="change-url-button" type="button">Change</button>
+        <button id="delete-url-button" type="button">Delete</button>
+    </div>
+    
+    <div id="create-url-buttons" style="display: none">
+        <button id="create-url-button" type="button">Create</button>
+    </div>
+</form>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const redirectCount = document.getElementById("redirect-count");
+    const redirectCountBlock = document.getElementById("redirect-count-block");
+    const inputShortUrl = document.getElementById("input-short-url");
+    const inputLongUrl = document.getElementById("input-long-url");
+    const createUrlButtons = document.getElementById("create-url-buttons");
+    const editUrlButtons = document.getElementById("edit-url-buttons");
+    const changeUrlButton = document.getElementById("change-url-button");
+    const deleteUrlButton = document.getElementById("delete-url-button");
+    const createUrlButton = document.getElementById("create-url-button");
+    
+    if(id == null)
+    {
+        createUrlButtons.style.display = "block";
+
+        createUrlButton.addEventListener("click", async () => {
+
+            const ShortUrl = inputShortUrl.value;
+            const LongUrl = inputLongUrl.value;
+
+            const response = await fetch("/short-urls", {
+                method: "POST",
+                headers: { "Content-Type": "application/json",
+                    "Authorization": "Bearer " + JwtAuth.getToken()},
+                body: JSON.stringify({ ShortUrl, LongUrl })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Create url failed");
+            }
+
+            window.location.href = "/short-urls.html";
+        });
+    }
+    else
+    {
+        editUrlButtons.style.display = "block";
+        redirectCountBlock.style.display = "block";
+        async function loadData() {
+
+            const response = await fetch("/short-urls/" + id, {
+                method: "GET",
+                headers: { "Content-Type": "application/json",
+                    "Authorization": "Bearer " + JwtAuth.getToken()}
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Loading data failed");
+            }
+            const url = await response.json();
+
+            inputShortUrl.value = url.shortUrl;
+            inputLongUrl.value = url.longUrl;
+            redirectCount.textContent = url.redirectCount;
+        }
+        loadData();
+
+        changeUrlButton.addEventListener("click", async () => {
+
+            const newShortUrl = inputShortUrl.value;
+            const newLongUrl = inputLongUrl.value;
+
+            const response = await fetch("/short-urls/" + id, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json",
+                    "Authorization": "Bearer " + JwtAuth.getToken()},
+                body: JSON.stringify({ newShortUrl, newLongUrl })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Change url failed");
+            }
+
+            window.location.href = "/short-urls.html";
+        });
+
+        deleteUrlButton.addEventListener("click", async () => {
+
+            const response = await fetch("/short-urls/" + id, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json",
+                    "Authorization": "Bearer " + JwtAuth.getToken()}
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Delete url failed");
+            }
+
+            inputShortUrl.value = "";
+            inputLongUrl.value = "";
+
+            window.location.href = "/short-urls.html";
+        });
+    }
+    
+    
+</script>
+
+</body>
+</html>

@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Url Shortener</title>
+    <script src="/main.js"></script>
+</head>
+<body>
+<p>Yo dude, this is url shortener. You can decrease size of your url.</p>
+<br/>
+<div id="logged-section" style="display: none">
+    <a href="short-urls.html">Urls List</a>
+    <a id="logout-button" href="#">Logout</a>
+    <div id="logged-greet"></div>
+</div>
+<div id="unlogged-section" style="display: none">
+    <a href="login.html">Login</a>
+    <a href="register.html">Register</a>
+</div>
+
+<script>
+    function refresh() {
+        if (JwtAuth.isAuthenticated()) {
+            document.getElementById("logged-section").style.display = "block";
+            document.getElementById("unlogged-section").style.display = "none";
+
+            document.getElementById("logged-greet").textContent = "Hi " + JwtAuth.getUserName();
+        } else {
+            document.getElementById("logged-section").style.display = "none";
+            document.getElementById("unlogged-section").style.display = "block";
+        }
+    }
+
+    document.getElementById("logout-button").addEventListener("click", async () => {
+        JwtAuth.logout();
+        refresh();
+    });
+
+    refresh();
+</script>
+</body>
+</html>

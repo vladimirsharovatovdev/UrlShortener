@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Url Shortener - Register</title>
+    <script src="/main.js"></script>
+</head>
+<body>
+<h2>Register</h2>
+
+<form>
+    <div>
+        <label for="input-name">Name: </label>
+        <input id="input-name" />
+    </div>
+
+    <div>
+        <label for="input-password">Password: </label>
+        <input id="input-password" type="password"/>
+    </div>
+
+    <button id="register-button" type="button">Register</button>
+</form>
+
+<script>
+    if (JwtAuth.isAuthenticated()) {
+        window.location.href = "/";
+    }
+
+    document.getElementById("register-button").addEventListener("click", async () => {
+        const name = document.getElementById("input-name").value;
+        const password = document.getElementById("input-password").value;
+
+        const response = await fetch("/managers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, password })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Registration failed");
+        }
+
+        window.location.href = "/login.html";
+    });
+</script>
+</body>
+</html>
