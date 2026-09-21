@@ -28,13 +28,29 @@ public class RedirectControllerTests
         var response = await redirectController.RedirectUrl("asdufi");
         Assert.IsType<NotFoundResult>(response);
     }
+
+    [Theory]
+    [InlineData("x' OR '1'='1")]
+    [InlineData("abc'; DROP TABLE urls;--")]
+    [InlineData("a b")]
+    public async Task RedirectUrlReturnsNotFoundForInvalidShortUrlWithoutQueryingService(string shortUrl)
+    {
+        var testShortUrlService = new TestShortUrlService();
+        testShortUrlService.LongUrl = "https://example.com";
+        var redirectController = new RedirectController(testShortUrlService);
+        var response = await redirectController.RedirectUrl(shortUrl);
+        Assert.IsType<NotFoundResult>(response);
+        Assert.Equal(0, testShortUrlService.GetLongUrlCallCount);
+    }
 }
 
 public class TestShortUrlService : IShortUrlService
 {
     public string? LongUrl { get; set; }
+    public int GetLongUrlCallCount { get; private set; }
     public async Task<string?> GetLongUrl(string shortUrl)
     {
+        GetLongUrlCallCount++;
         return LongUrl;
     }
 

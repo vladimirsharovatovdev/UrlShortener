@@ -13,15 +13,18 @@ public class ShortUrlService : IShortUrlService
 
     public async Task<string?> GetLongUrl(string shortUrl)
     {
-        await _dbContext.Database.OpenConnectionAsync();
-        await using var command = _dbContext.Database.GetDbConnection().CreateCommand();
-        command.CommandText = $@"
-    UPDATE urls 
-    SET redirect_count = redirect_count + 1
-    WHERE short_url = '{shortUrl}'
-    RETURNING long_url";
-
-        return (string?)await command.ExecuteScalarAsync();
+        // UPDATE ... RETURNING is non-composable SQL, so EF cannot add LIMIT 1 on top of it
+        // (FirstOrDefaultAsync would throw). Materialize with ToListAsync instead.
+        // {shortUrl} is sent as a query parameter, never concatenated into the SQL text.
+        var rows = await _dbContext.Database
+            .SqlQuery<string>($"""
+                               UPDATE urls
+                               SET redirect_count = redirect_count + 1
+                               WHERE short_url = {shortUrl}
+                               RETURNING long_url AS "Value"
+                               """)
+            .ToListAsync();
+        return rows.FirstOrDefault();
     }
 
     public async Task<List<UrlDto>> GetUrls(int managerId)

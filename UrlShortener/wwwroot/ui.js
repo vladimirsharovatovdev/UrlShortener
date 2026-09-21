@@ -123,9 +123,12 @@ const UI = (function () {
 
     class ApiError extends Error {
         constructor(status, serverMessage) {
-            super(serverMessage || defaultMessage(status));
+            // Only trust server-provided text for client errors (4xx); 5xx details may leak internals.
+            const usable = status >= 400 && status < 500 ? serverMessage : "";
+            super(usable || defaultMessage(status));
             this.name = "ApiError";
             this.status = status;
+            this.serverMessage = usable || "";
             this.handled = false;
         }
     }
@@ -189,7 +192,9 @@ const UI = (function () {
     function fail(err, map) {
         if (err && err.handled) return;
         const status = err && err.status;
-        const msg = (map && status !== undefined && map[status]) ||
+        // A specific message from the server (e.g. a validation error) beats the generic per-status text.
+        const msg = (err && err.serverMessage) ||
+            (map && status !== undefined && map[status]) ||
             (err && err.message) || defaultMessage(-1);
         toast(msg, "error");
     }

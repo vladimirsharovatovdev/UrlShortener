@@ -44,11 +44,20 @@ namespace UrlShortener.Controllers
         [Authorize]
         public async Task<IActionResult> CreateUrl([FromBody] CreateUrlModel model)
         {
+            model.LongUrl = (model.LongUrl ?? "").Trim();
+            model.ShortUrl = model.ShortUrl?.Trim();
+
+            var validationError = UrlValidator.ValidateLongUrl(model.LongUrl)
+                                  ?? UrlValidator.ValidateShortUrl(model.ShortUrl);
+            if (validationError != null)
+                return Problem(detail: validationError, statusCode: StatusCodes.Status400BadRequest);
+
             var currentUser = _currentUserService.GetCurrentUser();
             var urls = await _shortUrlService.CreateUrl([model], currentUser.ManagerId);
 
+            // The input is valid at this point, so an empty result means the short code is already used.
             if (urls.Count == 0)
-                return BadRequest();
+                return Problem(detail: "This short code is already taken.", statusCode: StatusCodes.Status400BadRequest);
 
             return Created((string?)null, value: urls[0]);
         }
@@ -70,6 +79,14 @@ namespace UrlShortener.Controllers
         [Authorize]
         public async Task<IActionResult> ChangeUrl(int id, [FromBody] ChangeUrlModel model)
         {
+            model.NewLongUrl = (model.NewLongUrl ?? "").Trim();
+            model.NewShortUrl = model.NewShortUrl?.Trim();
+
+            var validationError = UrlValidator.ValidateLongUrl(model.NewLongUrl)
+                                  ?? UrlValidator.ValidateShortUrl(model.NewShortUrl);
+            if (validationError != null)
+                return Problem(detail: validationError, statusCode: StatusCodes.Status400BadRequest);
+
             var currentUser = _currentUserService.GetCurrentUser();
             UrlDto? url;
             
@@ -77,9 +94,10 @@ namespace UrlShortener.Controllers
             {
                 url = await _shortUrlService.ChangeUrl(id, model, currentUser.ManagerId);
             }
-            catch (ArgumentException e)
+            catch (ArgumentException)
             {
-                return BadRequest();
+                // Thrown by the service when the short code belongs to another link.
+                return Problem(detail: "This short code is already taken.", statusCode: StatusCodes.Status400BadRequest);
             }
             
             if (url == null)
